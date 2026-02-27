@@ -1,0 +1,38 @@
+name: Update protest data
+
+on:
+  schedule:
+    # Run every Wednesday at 10am UTC (after CCC updates on Fridays,
+    # giving a few days buffer for the data to be published)
+    - cron: '0 10 * * 3'
+  workflow_dispatch:  # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run normalization script
+        run: python3 normalize.py
+
+      - name: Check if data changed
+        id: diff
+        run: |
+          git diff --quiet ccc_normalized.csv && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changed
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ccc_normalized.csv
+          git commit -m "Update protest data $(date +'%Y-%m-%d')"
+          git push
