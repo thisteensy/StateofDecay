@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Decade of Protest · United States 2017–2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --text: #e8e8f0;
+    --text-dim: #6b6b8a;
+    --protest: #e63946;
+    --demonstration: #ff6b35;
+    --march: #f4a261;
+    --rally: #4a9afa;
+    --walkout: #2ec4b6;
+    --strike: #9b5de5;
+    --vigil: #a8dadc;
+    --counter: #ffd166;
+    --other: rgba(255,255,255,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 16px 24px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    flex-shrink: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .subtitle {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .stats {
+    margin-left: auto;
+    display: flex;
+    gap: 24px;
+    align-items: baseline;
+  }
+
+  .stat {
+    text-align: right;
+  }
+
+  .stat-value {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .stat-label {
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  #map-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  svg#map {
+    width: 100%;
+    height: 100%;
+  }
+
+  .state-path {
+    fill: #16162a;
+    stroke: #2a2a45;
+    stroke-width: 0.5;
+  }
+
+  .event-dot {
+    cursor: pointer;
+    transition: opacity 0.1s;
+  }
+
+  .event-dot:hover {
+    opacity: 1 !important;
+  }
+
+  /* Tooltip */
+  #tooltip {
+    position: absolute;
+    background: #0d0d1a;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--protest);
+    padding: 12px 14px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    max-width: 280px;
+    z-index: 100;
+    font-size: 0.7rem;
+    line-height: 1.6;
+  }
+
+  #tooltip.visible { opacity: 1; }
+
+  .tt-date {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .tt-location {
+    font-size: 0.85rem;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .tt-type {
+    display: inline-block;
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .tt-size {
+    color: var(--text);
+    font-size: 0.72rem;
+    margin-bottom: 4px;
+  }
+
+  .tt-claims {
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    font-style: italic;
+    margin-top: 6px;
+    border-top: 1px solid var(--border);
+    padding-top: 6px;
+    max-height: 60px;
+    overflow: hidden;
+  }
+
+  /* Bottom controls */
+  #controls {
+    padding: 12px 24px 14px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  #date-display {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 110px;
+    letter-spacing: -0.02em;
+  }
+
+  #slider-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+  }
+
+  #timeline-track {
+    position: relative;
+    height: 100px;
+    cursor: pointer;
+  }
+
+  #timeline-svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .year-marker {
+    font-size: 0.7rem;
+    fill: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  #slider {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 2px;
+    background: var(--border);
+    outline: none;
+    margin-top: 4px;
+  }
+
+  #slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px rgba(255,255,255,0.3);
+  }
+
+  /* Legend */
+  #legend {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 120px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.58rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+
+  .legend-item:hover { color: var(--text); }
+  .legend-item.active { color: var(--text); }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  #play-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    padding: 6px 12px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+
+  #play-btn:hover {
+    border-color: var(--text);
+  }
+
+  #loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 50;
+  }
+
+  #loading-text {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  .month-bar {
+    fill: var(--border);
+    transition: fill 0.1s;
+  }
+  .month-bar.active { fill: #4a4a6a; }
+  .month-bar.current { fill: var(--text-dim); }
+  .month-bar.major-event { fill: #a0c4ff; opacity: 0.9; }
+  .month-bar.major-event.active { fill: #a0c4ff; opacity: 0.7; }
+  .month-bar.major-event.current { fill: #c8dcff; opacity: 1; }
+  .month-bar.major-warning { fill: #ffd166; opacity: 0.9; }
+  .month-bar.major-warning.active { fill: #ffd166; opacity: 0.7; }
+  .month-bar.major-warning.current { fill: #ffe299; opacity: 1; }
+
+  #side-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 300px;
+    height: 100%;
+    background: #0d0d1a;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    z-index: 20;
+  }
+
+  #side-panel.open {
+    transform: translateX(0);
+  }
+
+  #side-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #side-panel-title {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+  }
+
+  #side-panel-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 6px;
+    transition: color 0.15s;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  #side-panel-close:hover { color: var(--text); }
+
+  #side-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .sp-city {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 16px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sp-city:first-child { margin-top: 4px; }
+
+  .sp-event {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #1a1a2a;
+  }
+
+  .sp-event:last-child {
+    border-bottom: none;
+  }
+
+  .sp-event-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+    flex-wrap: wrap;
+  }
+
+  .sp-type-badge {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 2px 5px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+
+  .sp-date {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+
+  .sp-size {
+    font-size: 0.65rem;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .sp-claims {
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  #timeline-tooltip {
+    position: absolute;
+    background: #0d0d1a;
+    border: 1px solid var(--border);
+    border-left: 3px solid #a0c4ff;
+    color: var(--text);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 5px 10px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    z-index: 100;
+  }
+
+  #event-caption {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+    z-index: 20;
+  }
+
+  #event-caption.visible {
+    opacity: 1;
+  }
+
+  #event-caption-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+  }
+
+  #event-caption-date {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 4px;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+  }
+
+  #zoom-hint {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+
+  .tt-event-row {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tt-event-row:last-of-type { border-bottom: none; margin-bottom: 0; }
+
+  .tt-extra {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>A Decade of Protest</h1>
+    <div class="subtitle">United States · 2017–2026 · Crowd Counting Consortium</div>
+  </div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value" id="visible-count">—</div>
+      <div class="stat-label">Events shown</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="visible-people">—</div>
+      <div class="stat-label">Est. participants</div>
+    </div>
+  </div>
+</header>
+
+<div id="map-container">
+  <svg id="map"></svg>
+  <div id="tooltip">
+    <div class="tt-date" id="tt-date"></div>
+    <div class="tt-location" id="tt-location"></div>
+    <div class="tt-type" id="tt-type"></div>
+    <div class="tt-size" id="tt-size"></div>
+    <div class="tt-claims" id="tt-claims"></div>
+  </div>
+  <div id="loading"><div id="loading-text">Loading data…</div></div>
+  <div id="zoom-hint">Scroll to zoom · zoom in to explore individual events</div>
+  <div id="event-caption">
+    <div id="event-caption-label"></div>
+    <div id="event-caption-date"></div>
+  </div>
+  <div id="event-caption">
+    <div id="event-caption-label"></div>
+    <div id="event-caption-date"></div>
+  </div>
+  <div id="side-panel">
+    <div id="side-panel-header">
+      <div id="side-panel-title"></div>
+      <button id="side-panel-close">✕</button>
+    </div>
+    <div id="side-panel-body"></div>
+  </div>
+</div>
+
+<div id="controls">
+  <div id="date-display">—</div>
+  <button id="play-btn">▶ Play</button>
+  <div id="slider-container">
+    <div id="timeline-tooltip"></div>
+    <div id="timeline-track">
+      <svg id="timeline-svg"></svg>
+    </div>
+    <input type="range" id="slider" min="0" max="100" value="0" step="1">
+  </div>
+  <div id="legend">
+    <div class="legend-item active" data-type="protest"><div class="legend-dot" style="background:var(--protest)"></div>Protest</div>
+    <div class="legend-item active" data-type="demonstration"><div class="legend-dot" style="background:var(--demonstration)"></div>Demo</div>
+    <div class="legend-item active" data-type="march"><div class="legend-dot" style="background:var(--march)"></div>March</div>
+    <div class="legend-item active" data-type="rally"><div class="legend-dot" style="background:var(--rally)"></div>Rally</div>
+    <div class="legend-item active" data-type="walkout"><div class="legend-dot" style="background:var(--walkout)"></div>Walkout</div>
+    <div class="legend-item active" data-type="strike"><div class="legend-dot" style="background:var(--strike)"></div>Strike</div>
+    <div class="legend-item active" data-type="vigil"><div class="legend-dot" style="background:var(--vigil)"></div>Vigil</div>
+    <div class="legend-item active" data-type="counter-protest"><div class="legend-dot" style="background:var(--counter)"></div>Counter</div>
+  </div>
+</div>
+
+<script>
+const TYPE_COLORS = {
+  'protest': '#e63946',
+  'demonstration': '#ff6b35',
+  'march': '#f4a261',
+  'rally': '#4a9afa',
+  'walkout': '#2ec4b6',
+  'strike': '#9b5de5',
+  'vigil': '#a8dadc',
+  'counter-protest': '#ffd166',
+};
+
+function getColor(eventType) {
+  if (!eventType) return 'rgba(255,255,255,0.12)';
+  const t = eventType.toLowerCase().split(';')[0].trim();
+  return TYPE_COLORS[t] || 'rgba(255,255,255,0.12)';
+}
+
+function getType(eventType) {
+  if (!eventType) return 'other';
+  return eventType.toLowerCase().split(';')[0].trim();
+}
+
+function formatNum(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(0) + 'K';
+  return n.toLocaleString();
+}
+
+// All months from 2017-01 to 2026-01
+const allMonths = [];
+for (let y = 2017; y <= 2026; y++) {
+  const maxM = y === 2026 ? 2 : 12;
+  for (let m = 1; m <= maxM; m++) {
+    allMonths.push(`${y}-${String(m).padStart(2,'0')}`);
+  }
+}
+
+let allData = [];
+let monthlyData = {};
+let currentMonthIdx = 0;
+let playing = false;
+let playInterval = null;
+let activeTypes = new Set(Object.keys(TYPE_COLORS).concat(['other']));
+
+// Size scale
+const sizeScale = d3.scaleSqrt().domain([1, 1100000]).range([1.5, 18]).clamp(true);
+
+// Load US map and data
+// Major events for timeline annotation (module scope)
+const MAJOR_EVENTS = [
+    { date: "2017-01-21", label: "Women's March", type: "event" },
+    { date: "2017-04-22", label: "March for Science", type: "event" },
+    { date: "2018-01-20", label: "Women's March '18", type: "event" },
+    { date: "2018-03-14", label: "School Walkout", type: "event" },
+    { date: "2018-03-24", label: "March for Our Lives", type: "event" },
+    { date: "2018-06-30", label: "Families Belong Together", type: "event" },
+    { date: "2018-11-08", label: "Protect Mueller", type: "event" },
+    { date: "2019-07-12", label: "Lights for Liberty", type: "event" },
+    { date: "2019-09-20", label: "Climate Strike", type: "event" },
+    { date: "2019-12-17", label: "Impeach Trump", type: "event" },
+    { date: "2020-05-28", label: null, type: "period_start" },
+    { date: "2020-06-06", label: "BLM peak", type: "event" },
+    { date: "2020-06-14", label: null, type: "period_end" },
+    { date: "2021-01-06", label: "Jan 6", type: "warning" },
+    { date: "2021-10-02", label: "Abortion rights", type: "event" },
+    { date: "2022-05-14", label: "Abortion rights", type: "event" },
+    { date: "2022-06-24", label: "Roe overturned", type: "event" },
+    { date: "2022-10-02", label: "Women's Wave", type: "event" },
+    { date: "2025-04-05", label: "Hands Off!", type: "event" },
+    { date: "2025-04-19", label: "Hands Off! II", type: "event" },
+    { date: "2025-06-14", label: "No Kings", type: "event" },
+    { date: "2025-10-18", label: "No Kings II", type: "event" },
+    { date: "2026-01-10", label: "Justice for Renee Good", type: "event" },
+    { date: "2026-01-20", label: "Inauguration protests", type: "event" },
+    { date: "2026-01-30", label: "Anti-deportation wave", type: "event" },
+  ];
+
+async function init() {
+  const mapSvg = d3.select('#map');
+  const container = document.getElementById('map-container');
+  const W = container.clientWidth;
+  const H = container.clientHeight;
+  mapSvg.attr('viewBox', `0 0 ${W} ${H}`);
+
+  // Declare early so buildVoronoi (called from renderMonth) can access them
+  let voronoiLayer;
+  let currentTransform = d3.zoomIdentity;
+  const zoomHint = document.getElementById('zoom-hint');
+
+  const projection = d3.geoAlbersUsa()
+    .scale(W * 1.1)
+    .translate([W / 2, H / 2]);
+
+  const path = d3.geoPath().projection(projection);
+
+  // Load US states topojson
+  const us = await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
+  const states = topojson.feature(us, us.objects.states);
+
+  // Zoomable group wrapping everything
+  const zoomGroup = mapSvg.append('g').attr('id', 'zoom-group');
+
+  zoomGroup.append('g')
+    .selectAll('path')
+    .data(states.features)
+    .join('path')
+    .attr('class', 'state-path')
+    .attr('d', path);
+
+  // Create dots layer inside zoom group
+  const dotsLayer = zoomGroup.append('g').attr('id', 'dots-layer');
+
+  // Zoom behavior
+  const zoom = d3.zoom()
+    .scaleExtent([1, 12])
+    .on('zoom', (event) => {
+      zoomGroup.attr('transform', event.transform);
+      // Scale dots down as you zoom in so they don't overwhelm
+      const k = event.transform.k;
+      dotsLayer.selectAll('circle.event-dot')
+        .attr('r', d => (d.size ? sizeScale(Math.max(d.size, 1)) : 1.8) / Math.sqrt(k));
+    });
+
+  mapSvg.call(zoom);
+
+  // Double-click to reset zoom
+  mapSvg.on('dblclick.zoom', () => {
+    mapSvg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+  });
+
+  // Voronoi layer sits on top of everything in screen space
+  voronoiLayer = mapSvg.append('g').attr('id', 'voronoi-layer').style('pointer-events', 'all');
+
+  // Load CSV
+  document.getElementById('loading-text').textContent = 'Parsing events…';
+  const raw = await d3.csv('ccc_normalized.csv');
+
+  document.getElementById('loading-text').textContent = 'Processing…';
+
+  // Process and project
+  allData = [];
+  for (const row of raw) {
+    if (!row.lat || !row.lon || row.lat === 'NA' || row.lon === 'NA') continue;
+    const lat = +row.lat;
+    const lon = +row.lon;
+    if (isNaN(lat) || isNaN(lon)) continue;
+    const proj = projection([lon, lat]);
+    if (!proj) continue;
+
+    const low = parseFloat(row.size_low);
+    const high = parseFloat(row.size_high);
+    const size = (!isNaN(low) && !isNaN(high)) ? (low + high) / 2 :
+                 (!isNaN(low)) ? low :
+                 (!isNaN(high)) ? high : null;
+
+    const month = row.date ? row.date.substring(0, 7) : null;
+
+    allData.push({
+      x: proj[0],
+      y: proj[1],
+      date: row.date,
+      month,
+      city: row.city,
+      state: row.state,
+      eventType: getType(row.event_type),
+      color: getColor(row.event_type),
+      size,
+      arrests: row.arrests,
+      claims: row.claims && row.claims !== 'NA' ? row.claims : null,
+      macro: row.macro_event && row.macro_event !== 'NA' ? row.macro_event : null,
+    });
+  }
+
+  // Group by month
+  monthlyData = {};
+  for (const m of allMonths) monthlyData[m] = [];
+  for (const d of allData) {
+    if (d.month && monthlyData[d.month]) monthlyData[d.month].push(d);
+  }
+
+  document.getElementById('loading').style.display = 'none';
+
+  // Build timeline bars
+  const timelineTooltip = document.getElementById('timeline-tooltip');
+  buildTimeline();
+
+  // Initial render
+  renderMonth(0);
+
+  // Slider
+  const slider = document.getElementById('slider');
+  slider.max = allMonths.length - 1;
+  slider.addEventListener('input', () => {
+    currentMonthIdx = +slider.value;
+    renderMonth(currentMonthIdx);
+  });
+
+  // Play button
+  document.getElementById('play-btn').addEventListener('click', togglePlay);
+
+  // Legend toggle
+  document.querySelectorAll('.legend-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const t = item.dataset.type;
+      if (activeTypes.has(t)) {
+        activeTypes.delete(t);
+        item.classList.remove('active');
+      } else {
+        activeTypes.add(t);
+        item.classList.add('active');
+      }
+      renderMonth(currentMonthIdx);
+    });
+  });
+
+  // Tooltip
+  const tooltip = document.getElementById('tooltip');
+  zoom.on('zoom.track', (event) => { currentTransform = event.transform; });
+
+  // Voronoi overlay for tooltip hit areas
+
+
+  function buildVoronoi() {
+    voronoiLayer.selectAll('*').remove();
+    const k = currentTransform.k;
+
+    // Only activate voronoi tooltips when zoomed in
+    if (k < 2) {
+      zoomHint.style.opacity = '1';
+      return;
+    }
+    zoomHint.style.opacity = '0';
+
+    const events = monthlyData[allMonths[currentMonthIdx]] || [];
+    const filtered = events.filter(d => activeTypes.has(d.eventType) || activeTypes.has('other'));
+    if (filtered.length === 0) return;
+
+    // Project dots into screen space
+    const pts = filtered.map(d => {
+      const [sx, sy] = currentTransform.apply([d.x, d.y]);
+      return { ...d, sx, sy };
+    });
+
+    const delaunay = d3.Delaunay.from(pts, d => d.sx, d => d.sy);
+    const voronoi = delaunay.voronoi([0, 0, W, H]);
+
+    // Group nearby points (within 24px screen-space) for multi-event tooltips
+    // Use index-based clustering to avoid object reference issues
+    const CLUSTER_DIST = 24;
+    const pointToCluster = new Array(pts.length).fill(-1);
+    const clusters = [];
+    for (let i = 0; i < pts.length; i++) {
+      if (pointToCluster[i] !== -1) continue;
+      const clusterIdx = clusters.length;
+      pointToCluster[i] = clusterIdx;
+      const clusterPts = [pts[i]];
+      for (let j = i + 1; j < pts.length; j++) {
+        if (pointToCluster[j] !== -1) continue;
+        const dx = pts[i].sx - pts[j].sx;
+        const dy = pts[i].sy - pts[j].sy;
+        if (Math.sqrt(dx*dx + dy*dy) < CLUSTER_DIST) {
+          pointToCluster[j] = clusterIdx;
+          clusterPts.push(pts[j]);
+        }
+      }
+      clusters.push(clusterPts);
+    }
+
+    voronoiLayer.attr('transform', null);
+
+    pts.forEach((pt, i) => {
+      const cell = voronoi.renderCell(i);
+      if (!cell) return;
+      const clusterPts = clusters[pointToCluster[i]];
+
+      voronoiLayer.append('path')
+        .attr('d', cell)
+        .attr('fill', 'rgba(0,0,0,0.001)')
+        .attr('stroke', 'none')
+        .style('pointer-events', 'all')
+        .on('mouseenter', function(event) {
+          showGroupTooltip(event, clusterPts);
+        })
+        .on('mousemove', function(event) {
+          positionTooltip(event);
+        })
+        .on('mouseleave', function() {
+          tooltip.classList.remove('visible');
+        })
+        .on('click', function() {
+          tooltip.classList.remove('visible');
+          showSidePanel(clusterPts);
+        });
+    });
+  }
+
+  function showGroupTooltip(event, pts) {
+    tooltip.classList.add('visible');
+    const sorted = [...pts].sort((a, b) => (b.size || 0) - (a.size || 0));
+    const shown = sorted.slice(0, 4);
+    const extra = sorted.length - shown.length;
+
+    // Build tooltip HTML
+    const loc = shown[0];
+    let html = `<div class="tt-date">${loc.date}${sorted.length > 1 ? ` · ${sorted.length} events` : ''}</div>`;
+    html += `<div class="tt-location">${loc.city || ''}${loc.city && loc.state ? ', ' : ''}${loc.state || ''}</div>`;
+
+    shown.forEach(d => {
+      html += `<div class="tt-event-row">`;
+      html += `<span class="tt-type" style="background:${d.color}33;color:${d.color}">${d.eventType}</span>`;
+      if (d.size) html += ` <span class="tt-size">~${formatNum(Math.round(d.size))}</span>`;
+      const claimText = d.macro || d.claims;
+      if (claimText) html += `<div class="tt-claims">"${claimText.substring(0, 80)}${claimText.length > 80 ? '…' : ''}"</div>`;
+      html += `</div>`;
+    });
+
+    if (extra > 0) html += `<div class="tt-extra">+${extra} more</div>`;
+
+    tooltip.innerHTML = html;
+    tooltip.style.borderLeftColor = shown[0].color;
+    positionTooltip(event);
+  }
+
+  function positionTooltip(event) {
+    const rect = container.getBoundingClientRect();
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    let tx = event.clientX - rect.left + 14;
+    let ty = event.clientY - rect.top - 10;
+    if (tx + 300 > cw) tx = event.clientX - rect.left - 304;
+    if (ty + 250 > ch) ty = event.clientY - rect.top - 220;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+  }
+
+  const sidePanel = document.getElementById('side-panel');
+  const sidePanelTitle = document.getElementById('side-panel-title');
+  const sidePanelBody = document.getElementById('side-panel-body');
+
+  document.getElementById('side-panel-close').addEventListener('click', () => {
+    sidePanel.classList.remove('open');
+  });
+
+  function showSidePanel(pts) {
+    // Group by city
+    const byCity = {};
+    for (const pt of pts) {
+      const key = `${pt.city||'Unknown'}__${pt.state||''}`;
+      if (!byCity[key]) byCity[key] = { city: pt.city || 'Unknown', state: pt.state || '', events: [] };
+      byCity[key].events.push(pt);
+    }
+
+    // Sort cities by total crowd size desc
+    const cities = Object.values(byCity).sort((a, b) => {
+      const sa = a.events.reduce((s, e) => s + (e.size || 0), 0);
+      const sb = b.events.reduce((s, e) => s + (e.size || 0), 0);
+      return sb - sa;
+    });
+
+    // Sort events within each city by size desc
+    for (const c of cities) {
+      c.events.sort((a, b) => (b.size || 0) - (a.size || 0));
+    }
+
+    // Panel title — use month of first event
+    const firstDate = pts[0].date || '';
+    const monthLabel = firstDate ? new Date(firstDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+    sidePanelTitle.textContent = `${pts.length} event${pts.length !== 1 ? 's' : ''} · ${monthLabel}`;
+
+    // Build HTML
+    let html = '';
+    for (const c of cities) {
+      html += `<div class="sp-city">${c.city}${c.state ? ', ' + c.state : ''}</div>`;
+      for (const e of c.events) {
+        const dateLabel = e.date ? new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const claimText = e.macro || e.claims;
+        html += `<div class="sp-event">
+          <div class="sp-event-header">
+            <span class="sp-type-badge" style="background:${e.color}22;color:${e.color}">${e.eventType}</span>
+            <span class="sp-date">${dateLabel}</span>
+          </div>
+          ${e.size ? `<div class="sp-size">~${formatNum(Math.round(e.size))} participants</div>` : ''}
+          ${claimText ? `<div class="sp-claims">"${claimText.substring(0, 140)}${claimText.length > 140 ? '…' : ''}"</div>` : ''}
+        </div>`;
+      }
+    }
+
+    sidePanelBody.innerHTML = html;
+    sidePanelBody.scrollTop = 0;
+    sidePanel.classList.add('open');
+  }
+
+  // Rebuild voronoi when zoom changes (in addition to existing zoom handler)
+  zoom.on('zoom.voronoi', () => buildVoronoi());
+
+  dotsLayer.on('mouseleave', () => tooltip.classList.remove('visible'));
+
+  function renderMonth(idx) {
+    const month = allMonths[idx];
+    document.getElementById('date-display').textContent =
+      new Date(month + '-15').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    document.getElementById('slider').value = idx;
+    updateTimelineMarker(idx);
+
+    // Show event caption for major event months
+    const captionEl = document.getElementById('event-caption');
+    const captionLabel = document.getElementById('event-caption-label');
+    const captionDate = document.getElementById('event-caption-date');
+    const monthEvents = MAJOR_EVENTS.filter(e =>
+      e.date.substring(0, 7) === month && e.label && e.type !== 'period_start' && e.type !== 'period_end'
+    );
+    if (monthEvents.length > 0) {
+      captionLabel.textContent = monthEvents.map(e => e.label).join(' · ');
+      captionDate.textContent = new Date(monthEvents[0].date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      captionEl.classList.add('visible');
+    } else {
+      captionEl.classList.remove('visible');
+    }
+
+    const events = monthlyData[month] || [];
+    const filtered = events.filter(d => activeTypes.has(d.eventType) || activeTypes.has('other'));
+
+    // Stats
+    document.getElementById('visible-count').textContent = filtered.length.toLocaleString();
+    const totalPeople = filtered.reduce((s, d) => s + (d.size || 0), 0);
+    document.getElementById('visible-people').textContent = totalPeople > 0 ? formatNum(Math.round(totalPeople)) : '—';
+
+    // Draw dots
+    const dots = dotsLayer.selectAll('circle.event-dot').data(filtered, (d, i) => i);
+
+    dots.join(
+      enter => enter.append('circle')
+        .attr('class', 'event-dot')
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y)
+        .attr('r', d => d.size ? sizeScale(Math.max(d.size, 1)) : 1.8)
+        .attr('fill', d => d.color)
+        .attr('opacity', d => d.size ? 0.75 : 0.25)
+        .attr('stroke', d => d.size && d.size > 1000 ? d.color : 'none')
+        .attr('stroke-width', 0.5)
+        .attr('stroke-opacity', 0.4),
+      update => update
+        .attr('cx', d => d.x)
+        .attr('cy', d => d.y)
+        .attr('r', d => d.size ? sizeScale(Math.max(d.size, 1)) : 1.8)
+        .attr('fill', d => d.color)
+        .attr('opacity', d => d.size ? 0.75 : 0.25),
+      exit => exit.remove()
+    );
+
+    // Rebuild voronoi for new set of dots
+    buildVoronoi();
+  }
+
+
+  function buildTimeline() {
+    const svg = document.getElementById('timeline-svg');
+    const TW = svg.clientWidth || 800;
+    const BARS_H = 72;
+    const YEAR_H = 18;
+    const TOTAL_H = BARS_H + YEAR_H;
+    const d3svg = d3.select('#timeline-svg').attr('viewBox', `0 0 ${TW} ${TOTAL_H}`);
+    document.getElementById('timeline-track').style.height = TOTAL_H + 'px';
+
+    const barW = TW / allMonths.length;
+
+    // Build a set of major event months for quick lookup
+    const majorEventByMonth = {};
+    MAJOR_EVENTS.forEach(ev => {
+      const month = ev.date.substring(0, 7);
+      if (!majorEventByMonth[month]) majorEventByMonth[month] = [];
+      majorEventByMonth[month].push(ev);
+    });
+
+    // Helper: convert date string to x position
+    function dateToX(dateStr) {
+      const month = dateStr.substring(0, 7);
+      const i = allMonths.indexOf(month);
+      if (i === -1) return null;
+      const day = parseInt(dateStr.substring(8, 10)) || 1;
+      const daysInMonth = new Date(parseInt(month.substring(0,4)), parseInt(month.substring(5,7)), 0).getDate();
+      return (i + (day - 1) / daysInMonth) * barW;
+    }
+
+    // --- Activity bars ---
+    const counts = allMonths.map(m => (monthlyData[m] || []).length);
+    const maxCount = Math.max(...counts);
+    const barScale = d3.scaleLinear().domain([0, maxCount]).range([0, BARS_H - 4]);
+
+    // Draw bars — highlight major event months, dim gap months
+    allMonths.forEach((m, i) => {
+      const isMajor = !!majorEventByMonth[m];
+      const isWarning = isMajor && majorEventByMonth[m].some(e => e.type === 'warning');
+      const h = barScale(counts[i]);
+      const y = BARS_H - 4 - h;
+
+      const barClass = isWarning ? 'month-bar major-warning' : isMajor ? 'month-bar major-event' : 'month-bar';
+      const bar = d3svg.append('rect')
+        .attr('class', barClass)
+        .attr('x', i * barW)
+        .attr('y', h > 0 ? y : BARS_H - 5)
+        .attr('width', Math.max(barW - 0.5, 0.5))
+        .attr('height', h > 0 ? h : 1)
+        .attr('rx', 0.5);
+
+      // Tooltip on major event bars
+      if (isMajor) {
+        const events = majorEventByMonth[m];
+        bar.style('cursor', 'pointer')
+          .on('mouseenter', function(event) {
+            const labels = events.filter(e => e.label).map(e => e.label).join(' · ');
+            timelineTooltip.style.opacity = '1';
+            timelineTooltip.textContent = labels;
+            const svgRect = document.getElementById('timeline-track').getBoundingClientRect();
+            timelineTooltip.style.left = (event.clientX - svgRect.left) + 'px';
+            timelineTooltip.style.top = (event.clientY - svgRect.top - 36) + 'px';
+          })
+          .on('mouseleave', function() {
+            timelineTooltip.style.opacity = '0';
+          });
+      }
+    });
+
+    // --- BLM period band ---
+    const blmStart = MAJOR_EVENTS.find(e => e.type === 'period_start');
+    const blmEnd = MAJOR_EVENTS.find(e => e.type === 'period_end');
+    if (blmStart && blmEnd) {
+      const x1 = dateToX(blmStart.date);
+      const x2 = dateToX(blmEnd.date) + barW;
+      if (x1 !== null && x2 !== null) {
+        d3svg.insert('rect', ':first-child')
+          .attr('x', x1).attr('y', 0)
+          .attr('width', x2 - x1).attr('height', BARS_H - 4)
+          .attr('fill', '#e6394618').attr('rx', 1);
+      }
+    }
+
+    // --- Year labels ---
+    allMonths.forEach((m, i) => {
+      if (m.endsWith('-01')) {
+        d3svg.append('text')
+          .attr('class', 'year-marker')
+          .attr('x', i * barW + barW / 2)
+          .attr('y', TOTAL_H)
+          .attr('text-anchor', 'middle')
+          .text(m.substring(0, 4));
+      }
+    });
+
+    // --- Click to scrub ---
+    d3svg.on('click', function(event) {
+      const [x] = d3.pointer(event);
+      const idx = Math.floor(x / barW);
+      if (idx >= 0 && idx < allMonths.length) {
+        currentMonthIdx = idx;
+        renderMonth(idx);
+      }
+    });
+  }
+
+  function updateTimelineMarker(idx) {
+    d3.selectAll('rect.month-bar')
+      .attr('class', function(d, i) {
+        const m = allMonths[i];
+        const isMajor = MAJOR_EVENTS.some(e => e.date.substring(0,7) === m && e.type === 'event');
+        const isWarning = MAJOR_EVENTS.some(e => e.date.substring(0,7) === m && e.type === 'warning');
+        const typeClass = isWarning ? ' major-warning' : isMajor ? ' major-event' : '';
+        const stateClass = i === idx ? ' current' : i < idx ? ' active' : '';
+        return 'month-bar' + typeClass + stateClass;
+      });
+  }
+
+  function togglePlay() {
+    playing = !playing;
+    document.getElementById('play-btn').textContent = playing ? '⏸ Pause' : '▶ Play';
+    if (playing) {
+      playInterval = setInterval(() => {
+        currentMonthIdx = (currentMonthIdx + 1) % allMonths.length;
+        renderMonth(currentMonthIdx);
+        if (currentMonthIdx === allMonths.length - 1) togglePlay();
+      }, 600);
+    } else {
+      clearInterval(playInterval);
+    }
+  }
+}
+
+init().catch(err => {
+  document.getElementById('loading-text').textContent = 'Error: ' + err.message;
+  console.error(err);
+});
+</script>
+</body>
+</html>
