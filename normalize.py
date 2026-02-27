@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Normalize and merge CCC protest data from three phases into ccc_normalized.csv.
-- 2017-2020: static file committed to repo (ccc_compiled_20172020.csv)
+- 2017-2020: static file committed to repo (ccc_compiled_20172020_utf8.csv)
 - 2021-2024: downloaded from Harvard Dataverse (file ID 10822959)
 - 2025-present: downloaded from Harvard Dataverse (file ID 13448233)
 """
@@ -105,7 +105,7 @@ def download_and_read(file_id, normalizer, delimiter='\t'):
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    static_2017 = os.path.join(script_dir, 'ccc_compiled_20172020.csv')
+    static_2017 = os.path.join(script_dir, 'ccc_compiled_20172020_utf8.csv')
     output_path = os.path.join(script_dir, 'ccc_normalized.csv')
 
     all_rows = []
