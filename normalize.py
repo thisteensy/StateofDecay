@@ -139,6 +139,14 @@ def main():
         print(f"  ERROR downloading 2025-present: {e}", file=sys.stderr)
         sys.exit(1)
 
+    if os.path.exists(output_path):
+        with open(output_path, 'r') as f:
+            prev_count = sum(1 for _ in f) - 1  # subtract header row
+        if len(all_rows) < prev_count * 0.8:
+            print(f"  ERROR: {len(all_rows)} rows vs {prev_count} previously — possible data loss", file=sys.stderr)
+            sys.exit(1)
+        print(f"  Row count check passed: {prev_count} → {len(all_rows)}")
+
     # Write output
     print(f"\nWriting {len(all_rows)} rows to {output_path}...")
     with open(output_path, 'w', newline='', encoding='utf-8') as f:
