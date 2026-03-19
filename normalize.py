@@ -118,7 +118,7 @@ def main():
     print("Downloading 2021-2024 data...")
     try:
         rows_2021 = download_and_read(FILE_2021_2024, normalize_2021, delimiter='\t')
-        if len(rows_2021) < 50000:
+        if len(rows_2021) < 100000:
             print(f"  ERROR: only got {len(rows_2021)} rows from 2021-2024, expected ~139K", file=sys.stderr)
             sys.exit(1)
         all_rows += rows_2021
@@ -130,8 +130,8 @@ def main():
     print("Downloading 2025-present data...")
     try:
         rows_2025 = download_and_read(FILE_2025, normalize_2025, delimiter=',')
-        if len(rows_2025) < 50000:
-            print(f"  ERROR: only got {len(rows_2025)} rows from 2025-present, expected ~139K", file=sys.stderr)
+        if len(rows_2025) < 40000:
+            print(f"  ERROR: only got {len(rows_2025)} rows from 2025-present, expected ~40K", file=sys.stderr)
             sys.exit(1)
         all_rows += rows_2025
 
