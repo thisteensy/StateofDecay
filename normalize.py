@@ -117,7 +117,11 @@ def main():
     # 2021-2024: download from Dataverse
     print("Downloading 2021-2024 data...")
     try:
-        all_rows += download_and_read(FILE_2021_2024, normalize_2021, delimiter='\t')
+        rows_2021 = download_and_read(FILE_2021_2024, normalize_2021, delimiter='\t')
+        if len(rows_2021) < 50000:
+            print(f"  ERROR: only got {len(rows_2021)} rows from 2021-2024, expected ~139K", file=sys.stderr)
+            sys.exit(1)
+        all_rows += rows_2021
     except Exception as e:
         print(f"  ERROR downloading 2021-2024: {e}", file=sys.stderr)
         sys.exit(1)
@@ -125,7 +129,12 @@ def main():
     # 2025-present: download from Dataverse
     print("Downloading 2025-present data...")
     try:
-        all_rows += download_and_read(FILE_2025, normalize_2025, delimiter=',')
+        rows_2025 = download_and_read(FILE_2025, normalize_2025, delimiter=',')
+        if len(rows_2025) < 50000:
+            print(f"  ERROR: only got {len(rows_2025)} rows from 2025-present, expected ~139K", file=sys.stderr)
+            sys.exit(1)
+        all_rows += rows_2025
+
     except Exception as e:
         print(f"  ERROR downloading 2025-present: {e}", file=sys.stderr)
         sys.exit(1)
