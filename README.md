@@ -2,7 +2,7 @@
 
 An interactive map of political protests, demonstrations, marches, and strikes in the United States from January 2017 to the present.
 
-**[View the map →](https://thisteensy.github.io/StateofDecay/protest_map.html)**
+**[View the map →](https://thisteensy.github.io/DemocracyInMotion/protest_map.html)**
 
 ---
 
