@@ -1,4 +1,4 @@
-# State of Decay
+# Democracy in Motion
 
 An interactive map of political protests, demonstrations, marches, and strikes in the United States from January 2017 to the present.
 
